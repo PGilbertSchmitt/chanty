@@ -1,0 +1,33 @@
+{
+  "name": "ts-csp",
+  "version": "0.0.1",
+  "description": "Feature-middleclass Promise-based CSP library based on Paybase CSP library",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "repository": "git@github.com:PGilbertSchmitt/ts-csp.git",
+  "author": "PGilbertSchmitt <pgilbertschmitt@gmail.com>",
+  "license": "MIT",
+  "private": false,
+  "scripts": {
+    "test": "ava ./tests/index.spec.ts",
+    "coverage": "nyc --check-coverage --lines 100 --functions 100 --branches 100 yarn test --tap"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^2.15.0",
+    "@typescript-eslint/parser": "^2.15.0",
+    "ava": "^2.4.0",
+    "eslint": "^6.8.0",
+    "nyc": "^15.0.0",
+    "ts-node": "^8.6.1",
+    "typescript": "^3.7.4"
+  },
+  "ava": {
+    "compileEnhancements": false,
+    "extensions": [
+      "ts"
+    ],
+    "require": [
+      "ts-node/register"
+    ]
+  }
+}
