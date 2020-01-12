@@ -61,6 +61,18 @@ export class Channel<T> {
     });
   }
 
+  /**
+   * Pops all messages currently in the message queue, returning a promise that resolves
+   * to an array of all values.
+   */
+  public drain = async (): Promise<T[]> => {
+    const msgList: Promise<T>[] = [];
+    while (this[messages].length) {
+      msgList.push(this._take());
+    }
+    return Promise.all(msgList);
+  }
+
   private _take = async (): Promise<T> => {
     return new Promise(resolve => {
       this[takers].unshift(resolve);
