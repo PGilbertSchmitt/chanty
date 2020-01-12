@@ -48,3 +48,38 @@ test('Channel#put after take', async t => {
   t.is(taken, val, 'should resolve to the put\'ed value');
   t.pass();
 });
+
+test('Channel#drain', async t => {
+  const chan = t.context.chan;
+  const messages = [ msg(), msg(), msg() ];
+  messages.map(m => chan.put(m));
+  const result = await chan.drain();
+  t.deepEqual(result, messages, 'should resolve to all put\'ed values in the correct order');
+  t.pass();
+});
+
+test('Channel as iterator', async t => {
+  const chan = t.context.chan;
+  const messages = [ msg(), msg(), msg() ];
+  messages.map(m => chan.put(m));
+  let i = 0;
+  for await (const message of chan) {
+    t.is(message, messages[i], 'should resolve to put\'ed value in the correct order');
+    i++;
+    if (i === 3) { break; }
+  }
+  t.pass();
+});
+
+test('Channel#take as iterator', async t => {
+  const chan = t.context.chan;
+  const messages = [ msg(), msg(), msg() ];
+  messages.map(m => chan.put(m));
+  let i = 0;
+  for await (const message of chan.take()) {
+    t.is(message, messages[i], 'should resolve to put\'ed value in the correct order');
+    i++;
+    if (i === 3) { break; }
+  }
+  t.pass();
+});
