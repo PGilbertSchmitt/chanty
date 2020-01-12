@@ -1,5 +1,3 @@
-// CSP Plus
-
 const messages = Symbol('messages');
 const putters = Symbol('putters');
 const takers = Symbol('takers');
@@ -27,6 +25,10 @@ export class Channel<T> {
     };
   }
 
+  /**
+   * Enqueues a new message into the queue, returning a promise which resolves once
+   * the enqueued message has been taken out.
+   */
   public put = async (msg: T): Promise<void> => {
     return new Promise(resolve => {
       this[messages].unshift(msg);
@@ -39,13 +41,19 @@ export class Channel<T> {
     });
   }
 
+  /**
+   * Takes the first message out of the message queue, or the next message to populate
+   * the queue if it's currently empty. The returned promise resolves to the message
+   * value, and also behaves as an asynchronous iterable, which continuously pops off
+   * the message queue.
+   */
   public take = (): IterablePromise<T> => {
     const promise = this._take();
-    const self = this;
+    const ctx = this;
     const iterator = async function* (): AsyncIterableIterator<T> {
       yield await promise;
       while (true) {
-        yield await self._take();
+        yield await ctx._take();
       }
     };
     return Object.assign(promise, {
