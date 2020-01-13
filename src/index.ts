@@ -13,6 +13,9 @@ export type Selectable<T> =
   | Array<Channel<T>>
   | { [k: string]: Channel<T> };
 
+
+// type Key<T> = T extends keyof Selectable<T>;
+
 export class Channel<T> {
   private [messages]: T[];
   private [putters]: Array<() => void>;
@@ -105,6 +108,21 @@ export class Channel<T> {
     });
   }
 
+  public static select = <T>(
+    chans: Selectable<T>
+  ): IterablePromise<[unknown, T]> => {
+    const winningPromise = Channel._select(chans);
+    const iterator = async function* (): AsyncIterableIterator<[unknown, T]> {
+      yield await winningPromise;
+      while (true) {
+        yield await Channel._select(chans);
+      }
+    };
+    return Object.assign(winningPromise, {
+      [Symbol.asyncIterator]: iterator
+    });
+  }
+
   private _take = async (): Promise<T> => {
     return new Promise(resolve => {
       this[takers].unshift(resolve);
@@ -116,17 +134,6 @@ export class Channel<T> {
     });
   }
 
-  private static _alts = async <T>(...chans: Channel<T>[]): Promise<T> => {
-    const winner = await Promise.race(chans.map(chan => Channel._race(chan)));
-    // Flush all other racers
-    chans.forEach(chan => chan !== winner && chan[racers].pop());
-    // The winning channel is guaranteed to have a putter and a message,
-    // since that's how it resolves in the first place
-    // Now we resolve that putter and return the message
-    winner[putters].pop()!();
-    return winner[messages].pop()!;
-  }
-
   private static _race = <T>(chan: Channel<T>): Promise<Channel<T>> => {
     return new Promise(resolve => {
       chan[racers].unshift(resolve);
@@ -134,5 +141,56 @@ export class Channel<T> {
         chan[racers].pop()!(chan);
       }
     });
+  }
+
+  private static _alts = async <T>(...chans: Channel<T>[]): Promise<T> => {
+    const winner = await Promise.race(chans.map(chan => Channel._race(chan)));
+    // Flush all other racers
+    chans.forEach(chan => chan !== winner && chan[racers].pop());
+    // The winning channel is guaranteed to have a putter and a message,
+    // since that's how it resolves in the first place
+    // Now we resolve that putter and return the message 
+    winner[putters].pop()!();
+    return winner[messages].pop()!;
+  }
+
+  private static _select = async <T>(chans: Selectable<T>): Promise<[unknown, T]> => {
+    const cb = async (key: unknown, chan: Channel<T>) => {
+      const curChan = await Channel._race(chan);
+      return [ key, curChan ] as [unknown, Channel<T>];
+    };
+    const [ key, winner ] = await Promise.race(Channel._map(chans, cb));
+    Channel._foreach(chans, chan => chan !== winner && chan[racers].pop());
+    // The winning channel is guaranteed to have a putter and a message,
+    // since that's how it resolves in the first place
+    // Now we resolve that putter and return the message
+    winner[putters].pop()!();
+    return [ key, winner[messages].pop()! ];
+  }
+
+  private static _map = <T>(
+    sel: Selectable<T>,
+    fn: (key: unknown, chan: Channel<T>) => Promise<[unknown, Channel<T>]>
+  ) => {
+    if (sel instanceof Set) {
+      return [ ...sel.values() ].map(ch => fn(ch, ch));
+    } else if (sel instanceof Map) {
+      return [ ...sel.entries() ].map(([ key, ch ]) => fn(key, ch));
+    } else if (Array.isArray(sel)) {
+      return sel.map((ch, key) => fn(key, ch));
+    } else {
+      return Object.entries(sel).map(([ key, ch ]) => fn(key, ch));
+    }
+  }
+
+  private static _foreach = <T>(
+    sel: Selectable<T>,
+    fn: (chan: Channel<T>) => void
+  ) => {
+    if (typeof sel.forEach === 'function') {
+      // Covers Set, Map, and Array
+      sel.forEach(fn);
+    }
+    Object.values(sel).forEach(fn);
   }
 }
