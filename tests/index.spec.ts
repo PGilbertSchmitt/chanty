@@ -5,7 +5,7 @@ const test = anyTest as TestInterface<{
   chan: Channel<number>;
 }>;
 
-const msg = () => Math.random();
+const msg = Math.random;
 
 test.beforeEach('Create channel', t => {
   t.context = { chan: new Channel() };

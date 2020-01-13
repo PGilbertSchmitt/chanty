@@ -9,7 +9,7 @@
   "license": "MIT",
   "private": false,
   "scripts": {
-    "test": "ava ./tests/index.spec.ts",
+    "test": "ava ./tests/*.spec.ts",
     "coverage": "nyc --check-coverage --lines 100 --functions 100 --branches 100 yarn test --tap"
   },
   "devDependencies": {
