@@ -49,3 +49,15 @@ test('Channel.alts as iterator', async t => {
   }
   t.pass();
 });
+
+test('Channel.select', async t => {
+  const {
+    chanA,
+    chanB,
+    messages: [ valA, valB ],
+  } = t.context;
+
+  const winner = Channel.select([ chanA, chanB ]);
+  chanB.put(valB);
+  const result = await winner;
+});

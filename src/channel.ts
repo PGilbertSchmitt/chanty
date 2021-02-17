@@ -1,17 +1,4 @@
-import {
-  ChannelSet,
-  ChannelArray,
-  ChannelMap,
-  ChannelStruct,
-  Selectable,
-  // KeyChannelSetTuple,
-  // KeyChannelArrayTuple,
-  // KeyChannelMapTuple,
-  // KeyChannelStructTuple,
-  // KeyChannelTuple,
-  SelectableTuple,
-  KeyChannelTuple,
-} from './selectable';
+// import { Selectable, KeyChannelTuple, ChannelMap, ChannelSet } from './selectable';
 
 const messages = Symbol('messages');
 const putters = Symbol('putters');
@@ -22,12 +9,93 @@ export type IterablePromise<T> =
   & Promise<T>
   & { [Symbol.asyncIterator]: () => AsyncIterableIterator<T> };
 
+/*******************/
+/* CONTAINER TYPES */
+/*******************/
+
+/**
+ * A Set of Channel objects
+ */
+export type ChannelSet<V> = Set<Channel<V>>;
+
+/**
+ * An Array of Channel objects
+ */
+export type ChannelArray<V> = Array<Channel<V>>;
+
+export const _forEach = <V, K>(
+  collection: Selectable<V, K>,
+  fn: (chan: Channel<V>) => void
+) => {
+  if (typeof collection.forEach === 'function') {
+    collection.forEach(fn);
+  }
+};
+
+/**
+ * A Map of any arbitrary keys to Channel objects
+ */
+export type ChannelMap<K, V> = Map<K, Channel<V>>;
+
+/**
+ * A struct containing Channel object values
+ */
+export type ChannelStruct<V> = { [k: string]: Channel<V> };
+
+/**
+ * A collection of Channels, which can either be a Set, Array, string-keyed Struct,
+ * or arbitrarily-keyed Map
+ */
+export type Selectable<V, K>
+  = ChannelSet<V>
+  | ChannelArray<V>
+  | ChannelMap<K, V>
+  | ChannelStruct<V>;
+
+/***************/
+/* TUPLE TYPES */
+/***************/
+
+/**
+ * A Channel object stored in a set and the first message from that Channel
+ */
+export type KeyChannelSetTuple<V> = [Channel<V>, V];
+
+/**
+ * An index into a ChannelArray and the first message from that Channel at that index
+ */
+export type KeyChannelArrayTuple<V> = [number, V];
+
+/**
+ * A key into a Map and the first message from the Channel stored at that key
+ */
+export type KeyChannelMapTuple<K, V> = [K, V];
+
+/**
+ * A key into a struct and the first message from the Channel stored at that key
+ */
+export type KeyChannelStructTuple<V> = [string, V];
+
+/**
+ * This confusing type allows the select method to accurately return the correct
+ * tuple with the correct type information, based on the type of the input
+ */
+export type KeyChannelTuple<C>
+  = C extends ChannelSet<infer V> ? KeyChannelSetTuple<V>
+  : C extends ChannelArray<infer V> ? KeyChannelArrayTuple<V>
+  : C extends ChannelMap<infer K, infer V> ? KeyChannelMapTuple<K, V>
+  : C extends ChannelStruct<infer V> ? KeyChannelStructTuple<V>
+  : never;
+
+// export type SelectableTuple<V, K> = KeyChannelTuple<Selectable<V, K>>;
+
+
 export class Channel<T> {
   private [messages]: T[];
   private [putters]: Array<() => void>;
   private [takers]: Array<(msg: T) => void>;
   private [racers]: Array<(chan: Channel<T>) => void>;
-  
+
   public [Symbol.asyncIterator]: () => AsyncIterableIterator<T>;
 
   constructor() {
@@ -116,9 +184,9 @@ export class Channel<T> {
 
   public static select = <T, K>(
     chans: Selectable<T, K>
-  ): IterablePromise<SelectableTuple<T, K>> => {
+  ): IterablePromise<> => {
     const winningPromise = Channel._select(chans);
-    const iterator = async function* (): AsyncIterableIterator<SelectableTuple<T, K>> {
+    const iterator = async function* (): AsyncIterableIterator<[unknown, T]> {
       yield await winningPromise;
       while (true) {
         yield await Channel._select(chans);
@@ -160,64 +228,55 @@ export class Channel<T> {
     return winner[messages].pop()!;
   }
 
-  private static _select = async <C extends Selectable<T, K>, T, K>(
-    chans: C
-  ) => {
-    const [ key, winner ] = (await Promise.race(Channel._map(chans)));
-    // Once the first racer wins, the rest are purged. Brutal, I know...
+  private static _select = async <C extends Selectable<V, K>, V, K>(chans: C): Promise<KeyChannelTuple<C>> => {
+    const cb = async (key: K | string | number, chan: Channel<V>) => {
+      const curChan = await Channel._race(chan);
+      return [ key, curChan ] as KeyChannelTuple<C>;
+    };
+    const [ key, winner ] = await Promise.race(Channel._map(chans, cb)) as KeyChannelTuple<C>;
     Channel._foreach(chans, chan => chan !== winner && chan[racers].pop());
     // The winning channel is guaranteed to have a putter and a message,
     // since that's how it resolves in the first place
     // Now we resolve that putter and return the message
     winner[putters].pop()!();
-    return [ key, winner[messages].pop()! as T ] as KeyChannelTuple<Selectable<T, K>>;
+    return [ key, winner[messages].pop()! ];
   }
 
-  private static _map = <C extends Selectable<T, K>, T, K>(
-    sel: C
+  private static _map = <C extends Selectable<V, K>, V, K>(
+    sel: C,
+    fn: (key: K | string | number, chan: Channel<V>) => Promise<KeyChannelTuple<C>>
   ) => {
-    let tuple: unknown;
     if (sel instanceof Set) {
-      tuple = Channel._fromSet(sel);
+      return [ ...sel.values() ].map(ch => fn(ch, ch));
     } else if (sel instanceof Map) {
-      tuple = Channel._fromMap(sel);
+      return [ ...sel.entries() ].map(([ key, ch ]) => fn(key, ch));
     } else if (Array.isArray(sel)) {
-      tuple = Channel._fromArray(sel);
+      return sel.map((ch, key) => fn(key, ch));
     } else {
-      tuple = Channel._fromObj(sel as ChannelStruct<T>);
+      return Object.entries(sel).map(([ key, ch ]) => fn(key, ch));
     }
-
-    return tuple as KeyChannelTuple<C>;
   }
 
-  private static _fromSet = <T>(s: ChannelSet<T>) =>
-    [ ...s.values() ].map(ch => Channel._mapperCallback(ch, ch));
-    
-  private static _fromMap = <T, K>(m: ChannelMap<K, T>) =>
-    [ ...m.entries() ].map(([ key, ch ]) => Channel._mapperCallback(key, ch));
+  // private static _foreach = <V, K>(
+  //   sel: Selectable<V, K>,
+  //   fn: (chan: Channel<V>) => void
+  // ) => {
+  //   if (sel instanceof Map) {
+  //     sel.forEach(fn);
+  //   } else {
+  //     Object.values(sel).forEach(fn);
+  //   }
+  // }
 
-  private static _fromArray = <T>(a: ChannelArray<T>) =>
-    a.map((ch, i) => Channel._mapperCallback(i, ch));
 
-  private static _fromObj = <T>(s: ChannelStruct<T>) =>
-    Object.entries(s).map(([ key, ch ]) => Channel._mapperCallback(key, ch));
-
-  private static _mapperCallback = async <K, T>(
-    key: K,
-    chan: Channel<T>
-  ) => {
-    const curChan = await Channel._race(chan);
-    return [ key, curChan ] as [K, Channel<T>];
-  }
-
-  private static _foreach = <T, K>(
-    sel: Selectable<T, K>,
-    fn: (chan: Channel<T>) => void
+  private static _foreach = <V, K>(
+    sel: Selectable<V, K>,
+    fn: (chan: Channel<V>) => void
   ) => {
     if (typeof sel.forEach === 'function') {
-      // Covers Set, Map, and Array
       sel.forEach(fn);
+    } else {
+      Object.values(sel).forEach(fn);
     }
-    Object.values(sel).forEach(fn);
   }
 }
