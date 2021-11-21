@@ -10,19 +10,23 @@
   "private": false,
   "scripts": {
     "test": "ava ./tests/*.spec.ts",
-    "coverage": "nyc --check-coverage --lines 100 --functions 100 --branches 100 yarn test --tap"
+    "coverage": "nyc --check-coverage --lines 100 --functions 100 --branches 100 yarn test --tap",
+    "audit": "text_audit -f colorList -r -g src/**/*.{js,ts} -t TODO DOCUMENT"
   },
   "devDependencies": {
+    "@types/node": "^14.14.28",
+    "@types/ramda": "^0.27.50",
     "@typescript-eslint/eslint-plugin": "^4.15.1",
     "@typescript-eslint/parser": "^4.15.1",
     "ava": "^3.15.0",
     "eslint": "^7.20.0",
     "nyc": "^15.1.0",
+    "ramda": "^0.27.1",
+    "text_audit": "^0.9.3",
     "ts-node": "^9.1.1",
-    "typescript": "^4.1.5"
+    "typescript": "^4.4.4"
   },
   "ava": {
-    "compileEnhancements": false,
     "extensions": [
       "ts"
     ],
