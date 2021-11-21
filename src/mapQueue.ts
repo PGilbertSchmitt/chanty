@@ -36,10 +36,10 @@ export class MapQueue<K, V> {
     if (key === null) {
       throw new Error('Nothing to pop, check size before popping');
     }
-    const value = this._map.get(key);
-    if (value === undefined || value === null) {
-      throw new Error('Value was null or undefined')
-    }
+    // Because of MapQueue#_headKey(), we know this key exists, so Map#get will never
+    // return an undefined here unless you forced the V type to be `undefined`, so
+    // it's a safe non-null assertion.
+    const value = this._map.get(key)!;
     this._map.delete(key);
     return { key, value };
   };
@@ -52,10 +52,10 @@ export class MapQueue<K, V> {
     return this._map.has(key);
   };
 
-  drain = () => {
-    const values = Array.from(this._map.values());
+  drain = (): Array<KVPair<K, V>> => {
+    const values = Array.from(this._map.entries());
     this._map.clear();
-    return values;
+    return values.map(([ key, value ]) => ({ key, value }));
   }
 
   _headKey = () => {

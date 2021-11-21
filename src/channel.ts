@@ -97,7 +97,7 @@ export class Channel<T> {
     if (notEmpty(this[TAKERS])) {
       return null;
     }
-    return this[MESSAGES].drain().map(value => value.message);
+    return this[MESSAGES].drain().map(({ value }) => value.message);
   };
 
   /**
@@ -160,7 +160,7 @@ export class Channel<T> {
     for (const [key, channel] of channelMap.entries()) {
       if (notEmpty(channel[MESSAGES])) {
         const { message, resolvePutter } = channel[MESSAGES].pop().value;
-        return wrapInPromise(resolvePutter, [ message, key ]);
+        return wrapInPromise(resolvePutter, [message, key]);
       }
     }
 
@@ -173,7 +173,7 @@ export class Channel<T> {
             channel[TAKERS].delete(uniqueKey);
           })
         });
-        return [ winningMessage, key ];
+        return [winningMessage, key];
       })
     );
   };
