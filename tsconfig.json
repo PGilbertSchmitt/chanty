@@ -4,7 +4,7 @@
     "module": "None",
     "moduleResolution": "Node",
     "lib": [
-      "ES2019"
+      "ES2020"
     ],
     "allowJs": false,
     "declaration": true,
