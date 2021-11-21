@@ -10,7 +10,7 @@
   "private": false,
   "scripts": {
     "test": "ava ./tests/*.spec.ts",
-    "coverage": "nyc --check-coverage --lines 100 --functions 100 --branches 100 yarn test --tap",
+    "coverage": "nyc --check-coverage --lines 100 --functions 100 --branches 100 npm test --tap",
     "audit": "text_audit -f colorList -r -g src/**/*.{js,ts} -t TODO DOCUMENT"
   },
   "devDependencies": {
