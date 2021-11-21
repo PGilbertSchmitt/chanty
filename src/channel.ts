@@ -115,11 +115,19 @@ export class Channel<T> {
     }
   };
 
+  sizeMessages = () => {
+    return this[MESSAGES].size();
+  }
+
+  sizeTakers = () => {
+    return this[TAKERS].size();
+  }
+
   // The idea behind `cleanup` is that when a race between several channels ends,
   // there should be no chance of the sibling `takers` in the losing channels to
   // be executed. To facilitate this, `cleanup` is a function that removes the
   // other `takers` during the same synchronous flow.
-  _raceTake = (key: symbol, cleanup: () => void): Promise<T> => {
+  private _raceTake = (key: symbol, cleanup: () => void): Promise<T> => {
     return new Promise(resolveTaker => {
       this[TAKERS].push(key, message => {
         cleanup();

@@ -158,3 +158,26 @@ test('Channel.select between #put calls', async t => {
   t.is(message, valB, 'should resolve to the first put\'ed value');
   t.is(key, keyB, 'should resolve to the key of the put\'ed channel in the map');
 });
+
+test('Channel.sizeMessages', async t => {
+  const [chan] = initializeChannels();
+  times(() => chan.put(msg()), 5);
+  await Promise.all([
+    chan.take(),
+    chan.take()
+  ]);
+
+  t.is(chan.sizeMessages(), 3, 'should return the correct size of the message queue');
+});
+
+test('Channel.sizeTakers', async t => {
+  const [chan] = initializeChannels();
+  times(() => chan.take(), 5);
+  await Promise.all([
+    chan.put(msg()),
+    chan.put(msg()),
+    chan.put(msg())
+  ]);
+
+  t.is(chan.sizeTakers(), 2, 'should return the correct size of the message queue');
+});
