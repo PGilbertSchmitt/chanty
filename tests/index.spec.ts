@@ -222,26 +222,26 @@ test('Channel#put when canceling after take', async t => {
 
 test('Channel#takeWithCancel when canceling before put', async t => {
   const [chan] = initializeChannels();
-  const [msgA, msgB] = times(msg, 2);
+  const [msgA, msgB, msgC] = times(msg, 3);
 
   const firstTake = chan.take();
   const secondTake = chan.take();
   const thirdTake = chan.take();
 
-  const wasCanceled = secondTake.cancel();
+  const wasCanceled = secondTake.cancel(msgC);
 
   chan.put(msgA);
   chan.put(msgB);
 
   t.is(await firstTake, msgA, 'should resolve to the first message');
-  t.is(await secondTake, null, 'should resolve to null');
+  t.is(await secondTake, msgC, 'should resolve to the substitute message');
   t.is(await thirdTake, msgB, 'should resolve to the second message');
   t.true(wasCanceled, 'should return true if the `take` was canceled');
 });
 
 test('Channel#takeWithCancel when canceling after put', async t => {
   const [chan] = initializeChannels();
-  const [msgA, msgB, msgC] = times(msg, 3);
+  const [msgA, msgB, msgC, msgD] = times(msg, 4);
 
   const firstTake = chan.take();
   const secondTake = chan.take();
@@ -251,7 +251,7 @@ test('Channel#takeWithCancel when canceling after put', async t => {
   chan.put(msgB);
   chan.put(msgC);
 
-  const wasCanceled = secondTake.cancel();
+  const wasCanceled = secondTake.cancel(msgD);
 
   t.is(await firstTake, msgA, 'should resolve to the first message');
   t.is(await secondTake, msgB, 'should resolve to the second message');

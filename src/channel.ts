@@ -3,7 +3,8 @@ import {
   MapFunction,
   MessageQueue,
   TakerQueue,
-  CancelablePromise
+  CancelablePutPromise,
+  CancelableTakePromise
 } from './types';
 
 const MESSAGES = Symbol('messages');
@@ -56,7 +57,7 @@ export class Channel<T> {
   //   return this._put(message);
   // };
 
-  put = (message: T): CancelablePromise<void> => {
+  put = (message: T): CancelablePutPromise<void> => {
     const queueKey = Symbol('message-key');
     const promise: Promise<void> = this._put(message, queueKey);
     const cancel = () => {
@@ -74,18 +75,18 @@ export class Channel<T> {
   /**
    * Returns a promise that resolves to the value of next message `put` into the channel.
    * If there is a queued message, it is synchronously removed from the queue, but the
-   * resolution is still wrapped in a promise for consistency.
+   * resolution is still wrapped in a promise for consistency. The returned promise has
+   * a `cancel` method, which can attempt to unqueue a particular `take`. If this happens,
+   * the promise resolves to `null`.
    */
-  take = (): CancelablePromise<T> => {
+  take = (): CancelableTakePromise<T> => {
     const queueKey = Symbol('take-key');
     const promise = this._take(queueKey);
 
-    const cancel = () => {
+    const cancel = (subMessage: T) => {
       if (this[TAKERS].has(queueKey)) {
         const resolveTaker = this[TAKERS].steal(queueKey);
-        // Need to force `resolveTaker` to accept null, which would synchronize its type
-        // with the `resolved` value, which can now resolve to `null`
-        resolveTaker(null!);
+        resolveTaker(subMessage);
         return true;
       } else {
         return false;
