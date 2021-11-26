@@ -228,3 +228,31 @@ test('MapQueue#drain after a delete', t => {
     'returns the pushed key/value pairs in order'
   );
 });
+
+test('MapQueue#steal', t => {
+  const mq = initQ();
+  const [keyA, keyB, msgA, msgB] = times(uniq, 4);
+
+  mq.push(keyA, msgA);
+  mq.push(keyB, msgB);
+
+  const valA = mq.steal(keyA);
+  const { value: valB } = mq.pop();
+
+  t.is(valA, msgA, 'should equal the stolen value');
+  t.is(valB, msgB, 'should be next in the queue');
+});
+
+test('MapQueue#steal when key is missing', t => {
+  const mq = initQ();
+
+  const key = uniq();
+  const error = t.throws(() => {
+    mq.steal(key);
+  });
+  t.is(
+    error.message,
+    `No value found at '${key}'`,
+    'should give the correct error message'
+  );
+});

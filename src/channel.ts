@@ -2,7 +2,8 @@ import { MapQueue } from './mapQueue';
 import {
   MapFunction,
   MessageQueue,
-  TakerQueue
+  TakerQueue,
+  CancelableResponse
 } from './types';
 
 const MESSAGES = Symbol('messages');
@@ -51,25 +52,25 @@ export class Channel<T> {
    * it is synchronously removed from the queue, but the resolution is still wrapped in
    * a promise for consistency.
    */
-  public put = (message: T): Promise<void> => {
-    if (notEmpty(this[TAKERS])) {
-      // By removing the queued taker synchronously, we should prevent any weird race
-      // conditions. Wrapping the resolution of that into a new promise makes it
-      // easier to reason about the datatypes, as #put should always return a promise,
-      // even if it technically resolves immediately.
-      const resolveTaker = this[TAKERS].pop().value;
-      // return wrapInPromise(() => resolveTaker(message));
-      return new Promise(r => {
-        resolveTaker(message);
-        r();
-      });
-    }
-    return new Promise<void>(resolvePutter => {
-      this[MESSAGES].push(Symbol('message-key'), {
-        message,
-        resolvePutter
-      });
-    });
+  put = (message: T): Promise<void> => {
+    return this._put(message);
+  };
+
+  putWithCancel = (message: T): CancelableResponse<void> => {
+    const key = Symbol('cancelable-message-key');
+    const resolved = this._put(message, key);
+    return [
+      resolved,
+      () => {
+        if (this[MESSAGES].has(key)) {
+          const { resolvePutter } = this[MESSAGES].steal(key);
+          resolvePutter();
+          return true;
+        } else {
+          return false;
+        }
+      }
+    ];
   };
 
   /**
@@ -78,13 +79,26 @@ export class Channel<T> {
    * resolution is still wrapped in a promise for consistency.
    */
   take = (): Promise<T> => {
-    if (notEmpty(this[MESSAGES])) {
-      const { message, resolvePutter } = this[MESSAGES].pop().value;
-      return wrapInPromise(resolvePutter, message);
-    }
-    return new Promise(resolveTaker => {
-      this[TAKERS].push(Symbol('take-key'), resolveTaker);
-    });
+    return this._take();
+  };
+
+  takeWithCancel = (): CancelableResponse<T | null> => {
+    const key = Symbol('cancelable-take-key');
+    const resolved = this._take(key);
+    return [
+      resolved,
+      () => {
+        if (this[TAKERS].has(key)) {
+          const resolveTaker = this[TAKERS].steal(key);
+          // Need to force `resolveTaker` to accept null, which would synchronize its type
+          // with the `resolved` value, which can now resolve to `null`
+          resolveTaker(null!);
+          return true;
+        } else {
+          return false;
+        }
+      }
+    ];
   };
 
   /**
@@ -97,7 +111,10 @@ export class Channel<T> {
     if (notEmpty(this[TAKERS])) {
       return null;
     }
-    return this[MESSAGES].drain().map(({ value }) => value.message);
+    return this[MESSAGES].drain().map(({ value }) => {
+      value.resolvePutter();
+      return value.message;
+    });
   };
 
   /**
@@ -117,11 +134,42 @@ export class Channel<T> {
 
   sizeMessages = () => {
     return this[MESSAGES].size();
-  }
+  };
 
   sizeTakers = () => {
     return this[TAKERS].size();
-  }
+  };
+
+  private _take = (queueKey?: symbol): Promise<T> => {
+    if (notEmpty(this[MESSAGES])) {
+      const { message, resolvePutter } = this[MESSAGES].pop().value;
+      return wrapInPromise(resolvePutter, message);
+    }
+    return new Promise(resolveTaker => {
+      this[TAKERS].push(queueKey || Symbol('take-key'), resolveTaker);
+    });
+  };
+
+  private _put = (message: T, queueKey?: symbol): Promise<void> => {
+    if (notEmpty(this[TAKERS])) {
+      // By removing the queued taker synchronously, we should prevent any weird race
+      // conditions. Wrapping the resolution of that into a new promise makes it
+      // easier to reason about the datatypes, as #put should always return a promise,
+      // even if it technically resolves immediately.
+      const resolveTaker = this[TAKERS].pop().value;
+      // return wrapInPromise(() => resolveTaker(message));
+      return new Promise(r => {
+        resolveTaker(message);
+        r();
+      });
+    }
+    return new Promise<void>(resolvePutter => {
+      this[MESSAGES].push(queueKey || Symbol('message-key'), {
+        message,
+        resolvePutter
+      });
+    });
+  };
 
   // The idea behind `cleanup` is that when a race between several channels ends,
   // there should be no chance of the sibling `takers` in the losing channels to

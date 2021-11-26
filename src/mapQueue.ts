@@ -44,6 +44,16 @@ export class MapQueue<K, V> {
     return { key, value };
   };
 
+  steal = (key: K): V => {
+    // Can't be null or undefined, safe to force
+    const value = this._map.get(key);
+    if (value === null || value === undefined) {
+      throw new Error(`No value found at '${key}'`);
+    }
+    this._map.delete(key);
+    return value;
+  }
+
   delete = (key: K) => {
     this._map.delete(key);
   };

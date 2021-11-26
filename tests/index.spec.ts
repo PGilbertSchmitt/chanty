@@ -4,7 +4,7 @@ import { Channel } from '../src/channel';
 
 const msg = Math.random;
 
-const initializeChannels = (number = 1) => times(() => new Channel(), number);
+const initializeChannels = (number = 1) => times(() => new Channel<number>(), number);
 
 test('Channel constructor', t => {
   const [chan] = initializeChannels();
@@ -114,7 +114,7 @@ test('Channel.race between #put calls', async t => {
 
 test('Channel.select after #put', async t => {
   const [chanA, chanB] = initializeChannels(2);
-  const [keyA, keyB, valA, valB] = [msg(), msg(), msg(), msg()];
+  const [keyA, keyB, valA, valB] = times(msg, 4);
   const map = new Map();
   map.set(keyA, chanA);
   map.set(keyB, chanB);
@@ -129,7 +129,7 @@ test('Channel.select after #put', async t => {
 
 test('Channel.select before #put', async t => {
   const [chanA, chanB] = initializeChannels(2);
-  const [keyA, keyB, valA, valB] = [msg(), msg(), msg(), msg()];
+  const [keyA, keyB, valA, valB] = times(msg, 4);
   const map = new Map();
   map.set(keyA, chanA);
   map.set(keyB, chanB);
@@ -145,7 +145,7 @@ test('Channel.select before #put', async t => {
 
 test('Channel.select between #put calls', async t => {
   const [chanA, chanB] = initializeChannels(2);
-  const [keyA, keyB, valA, valB] = [msg(), msg(), msg(), msg()];
+  const [keyA, keyB, valA, valB] = times(msg, 4);
   const map = new Map();
   map.set(keyA, chanA);
   map.set(keyB, chanB);
@@ -159,7 +159,7 @@ test('Channel.select between #put calls', async t => {
   t.is(key, keyB, 'should resolve to the key of the put\'ed channel in the map');
 });
 
-test('Channel.sizeMessages', async t => {
+test('Channel#sizeMessages', async t => {
   const [chan] = initializeChannels();
   times(() => chan.put(msg()), 5);
   await Promise.all([
@@ -170,7 +170,7 @@ test('Channel.sizeMessages', async t => {
   t.is(chan.sizeMessages(), 3, 'should return the correct size of the message queue');
 });
 
-test('Channel.sizeTakers', async t => {
+test('Channel#sizeTakers', async t => {
   const [chan] = initializeChannels();
   times(() => chan.take(), 5);
   await Promise.all([
@@ -180,4 +180,81 @@ test('Channel.sizeTakers', async t => {
   ]);
 
   t.is(chan.sizeTakers(), 2, 'should return the correct size of the message queue');
+});
+
+test('Channel#putWithCancel when canceling before take', async t => {
+  const [chan] = initializeChannels();
+  const [msgA, msgB, msgC] = times(msg, 3);
+
+  chan.put(msgA);
+  const [ _, cancel] = chan.putWithCancel(msgB);
+  chan.put(msgC);
+  
+  const wasCanceled = cancel();
+
+  const valA = await chan.take();
+  const valC = await chan.take();
+
+  t.is(valA, msgA, 'should equal the first put\'ed message');
+  t.is(valC, msgC, 'should equal the third put\'ed message');
+  t.true(wasCanceled, 'should return true if the `put` was canceled');
+});
+
+test('Channel#putWithCancel when canceling after take', async t => {
+  const [chan] = initializeChannels();
+  const [msgA, msgB, msgC] = times(msg, 3);
+
+  chan.put(msgA);
+  const [ _, cancel] = chan.putWithCancel(msgB);
+  chan.put(msgC);
+
+  const valA = await chan.take();
+  const valB = await chan.take();
+  const valC = await chan.take();
+
+  const wasCanceled = cancel();
+
+  t.is(valA, msgA, 'should equal the first put\'ed message');
+  t.is(valB, msgB, 'should equal the second put\'ed message');
+  t.is(valC, msgC, 'should equal the third put\'ed message');
+  t.false(wasCanceled, 'should return false if the `put` was not canceled in time');
+});
+
+test('Channel#takeWithCancel when canceling before put', async t => {
+  const [chan] = initializeChannels();
+  const [msgA, msgB] = times(msg, 2);
+
+  const firstTake = chan.take();
+  const [secondTake, cancel] = chan.takeWithCancel();
+  const thirdTake = chan.take();
+
+  const wasCanceled = cancel();
+
+  chan.put(msgA);
+  chan.put(msgB);
+
+  t.is(await firstTake, msgA, 'should resolve to the first message');
+  t.is(await secondTake, null, 'should resolve to null');
+  t.is(await thirdTake, msgB, 'should resolvto the second message');
+  t.true(wasCanceled, 'should return true if the `take` was canceled');
+});
+
+test('Channel#takeWithCancel when canceling after put', async t => {
+  const [chan] = initializeChannels();
+  const [msgA, msgB, msgC] = times(msg, 3);
+
+  const firstTake = chan.take();
+  const [secondTake, cancel] = chan.takeWithCancel();
+  const thirdTake = chan.take();
+  
+  chan.put(msgA);
+  chan.put(msgB);
+  chan.put(msgC);
+
+  const wasCanceled = cancel();
+
+  t.is(await firstTake, msgA, 'should resolve to the first message');
+  t.is(await secondTake, msgB, 'should resolve to the second message');
+  t.is(await thirdTake, msgC, 'should resolvto the third message');
+  t.false(wasCanceled, 'should return false if the `take` was not canceled in time');
 });
