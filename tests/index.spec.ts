@@ -187,7 +187,7 @@ test('Channel#putWithCancel when canceling before take', async t => {
   const [msgA, msgB, msgC] = times(msg, 3);
 
   chan.put(msgA);
-  const [ _, cancel] = chan.putWithCancel(msgB);
+  const { cancel } = chan.put(msgB);
   chan.put(msgC);
   
   const wasCanceled = cancel();
@@ -200,12 +200,12 @@ test('Channel#putWithCancel when canceling before take', async t => {
   t.true(wasCanceled, 'should return true if the `put` was canceled');
 });
 
-test('Channel#putWithCancel when canceling after take', async t => {
+test('Channel#put when canceling after take', async t => {
   const [chan] = initializeChannels();
   const [msgA, msgB, msgC] = times(msg, 3);
 
   chan.put(msgA);
-  const [ _, cancel] = chan.putWithCancel(msgB);
+  const { cancel } = chan.put(msgB);
   chan.put(msgC);
 
   const valA = await chan.take();
@@ -225,17 +225,17 @@ test('Channel#takeWithCancel when canceling before put', async t => {
   const [msgA, msgB] = times(msg, 2);
 
   const firstTake = chan.take();
-  const [secondTake, cancel] = chan.takeWithCancel();
+  const secondTake = chan.take();
   const thirdTake = chan.take();
 
-  const wasCanceled = cancel();
+  const wasCanceled = secondTake.cancel();
 
   chan.put(msgA);
   chan.put(msgB);
 
   t.is(await firstTake, msgA, 'should resolve to the first message');
   t.is(await secondTake, null, 'should resolve to null');
-  t.is(await thirdTake, msgB, 'should resolvto the second message');
+  t.is(await thirdTake, msgB, 'should resolve to the second message');
   t.true(wasCanceled, 'should return true if the `take` was canceled');
 });
 
@@ -244,14 +244,14 @@ test('Channel#takeWithCancel when canceling after put', async t => {
   const [msgA, msgB, msgC] = times(msg, 3);
 
   const firstTake = chan.take();
-  const [secondTake, cancel] = chan.takeWithCancel();
+  const secondTake = chan.take();
   const thirdTake = chan.take();
   
   chan.put(msgA);
   chan.put(msgB);
   chan.put(msgC);
 
-  const wasCanceled = cancel();
+  const wasCanceled = secondTake.cancel();
 
   t.is(await firstTake, msgA, 'should resolve to the first message');
   t.is(await secondTake, msgB, 'should resolve to the second message');

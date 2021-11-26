@@ -3,7 +3,7 @@ import {
   MapFunction,
   MessageQueue,
   TakerQueue,
-  CancelableResponse
+  CancelablePromise
 } from './types';
 
 const MESSAGES = Symbol('messages');
@@ -52,25 +52,23 @@ export class Channel<T> {
    * it is synchronously removed from the queue, but the resolution is still wrapped in
    * a promise for consistency.
    */
-  put = (message: T): Promise<void> => {
-    return this._put(message);
-  };
+  // put = (message: T): Promise<void> => {
+  //   return this._put(message);
+  // };
 
-  putWithCancel = (message: T): CancelableResponse<void> => {
-    const key = Symbol('cancelable-message-key');
-    const resolved = this._put(message, key);
-    return [
-      resolved,
-      () => {
-        if (this[MESSAGES].has(key)) {
-          const { resolvePutter } = this[MESSAGES].steal(key);
-          resolvePutter();
-          return true;
-        } else {
-          return false;
-        }
+  put = (message: T): CancelablePromise<void> => {
+    const queueKey = Symbol('message-key');
+    const promise: Promise<void> = this._put(message, queueKey);
+    const cancel = () => {
+      if (this[MESSAGES].has(queueKey)) {
+        const { resolvePutter } = this[MESSAGES].steal(queueKey);
+        resolvePutter();
+        return true;
+      } else {
+        return false;
       }
-    ];
+    };
+    return Object.assign(promise, { cancel });
   };
 
   /**
@@ -78,27 +76,23 @@ export class Channel<T> {
    * If there is a queued message, it is synchronously removed from the queue, but the
    * resolution is still wrapped in a promise for consistency.
    */
-  take = (): Promise<T> => {
-    return this._take();
-  };
+  take = (): CancelablePromise<T> => {
+    const queueKey = Symbol('take-key');
+    const promise = this._take(queueKey);
 
-  takeWithCancel = (): CancelableResponse<T | null> => {
-    const key = Symbol('cancelable-take-key');
-    const resolved = this._take(key);
-    return [
-      resolved,
-      () => {
-        if (this[TAKERS].has(key)) {
-          const resolveTaker = this[TAKERS].steal(key);
-          // Need to force `resolveTaker` to accept null, which would synchronize its type
-          // with the `resolved` value, which can now resolve to `null`
-          resolveTaker(null!);
-          return true;
-        } else {
-          return false;
-        }
+    const cancel = () => {
+      if (this[TAKERS].has(queueKey)) {
+        const resolveTaker = this[TAKERS].steal(queueKey);
+        // Need to force `resolveTaker` to accept null, which would synchronize its type
+        // with the `resolved` value, which can now resolve to `null`
+        resolveTaker(null!);
+        return true;
+      } else {
+        return false;
       }
-    ];
+    };
+
+    return Object.assign(promise, { cancel });
   };
 
   /**
@@ -140,17 +134,17 @@ export class Channel<T> {
     return this[TAKERS].size();
   };
 
-  private _take = (queueKey?: symbol): Promise<T> => {
+  private _take = (queueKey: symbol): Promise<T> => {
     if (notEmpty(this[MESSAGES])) {
       const { message, resolvePutter } = this[MESSAGES].pop().value;
       return wrapInPromise(resolvePutter, message);
     }
     return new Promise(resolveTaker => {
-      this[TAKERS].push(queueKey || Symbol('take-key'), resolveTaker);
+      this[TAKERS].push(queueKey, resolveTaker);
     });
   };
 
-  private _put = (message: T, queueKey?: symbol): Promise<void> => {
+  private _put = (message: T, queueKey: symbol): Promise<void> => {
     if (notEmpty(this[TAKERS])) {
       // By removing the queued taker synchronously, we should prevent any weird race
       // conditions. Wrapping the resolution of that into a new promise makes it
@@ -164,7 +158,7 @@ export class Channel<T> {
       });
     }
     return new Promise<void>(resolvePutter => {
-      this[MESSAGES].push(queueKey || Symbol('message-key'), {
+      this[MESSAGES].push(queueKey, {
         message,
         resolvePutter
       });
