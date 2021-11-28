@@ -7,8 +7,8 @@ import {
   CancelableTakePromise
 } from './types';
 
-const MESSAGES = Symbol('messages');
-const TAKERS = Symbol('takers');
+const MESSAGES = Symbol('MESSAGES');
+const TAKERS = Symbol('TAKERS');
 
 const notEmpty = (collection: MapQueue<any, any>) => {
   return collection.size() > 0;
@@ -58,7 +58,7 @@ export class Channel<T> {
   // };
 
   put = (message: T): CancelablePutPromise<void> => {
-    const queueKey = Symbol('message-key');
+    const queueKey = Symbol('put-key');
     const promise: Promise<void> = this._put(message, queueKey);
     const cancel = () => {
       if (this[MESSAGES].has(queueKey)) {
@@ -103,9 +103,6 @@ export class Channel<T> {
    * This method is synchronous.
    */
   drain = () => {
-    if (notEmpty(this[TAKERS])) {
-      return null;
-    }
     return this[MESSAGES].drain().map(({ value }) => {
       value.resolvePutter();
       return value.message;
@@ -116,12 +113,12 @@ export class Channel<T> {
    * Take as an asynchronous iterator, which iterates of the messages in the queue
    * as they arrive;
    */
-  messages = () => {
+  messages = (): AsyncIterable<T> => {
     const self = this;
     return {
       [Symbol.asyncIterator]: async function* () {
         while (true) {
-          yield await self.take();
+          yield await self._take(Symbol('messages-key'));
         }
       }
     }
@@ -193,7 +190,7 @@ export class Channel<T> {
       }
     }
 
-    const racerKey = Symbol('racer-key');
+    const racerKey = Symbol('race-key');
     const racePromises = channels.map(channel => channel._raceTake(racerKey, () => {
       channels.forEach(racer => racer[TAKERS].delete(racerKey));
     }));
@@ -205,7 +202,7 @@ export class Channel<T> {
    * received by any channel in the map, as well as the key in the map where the channel that
    * received the message was stored.
    */
-  static select = async <K, T>(channelMap: Map<K, Channel<T>>) => {
+  static select = async <K, T>(channelMap: Map<K, Channel<T>>): Promise<[T, K]> => {
     // Before adding takers, first check if a race is necessary. If any channels have queued
     // messages at the start, `#race` will return the earlist one in the list.
     for (const [key, channel] of channelMap.entries()) {
@@ -215,7 +212,7 @@ export class Channel<T> {
       }
     }
 
-    const uniqueKey = Symbol('race-select');
+    const uniqueKey = Symbol('select-key');
     return await Promise.race(
       mapOverMap(channelMap, async (key, channel) => {
         const winningMessage = await channel._raceTake(uniqueKey, () => {

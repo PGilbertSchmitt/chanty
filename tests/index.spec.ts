@@ -59,7 +59,7 @@ test('Channel#drain after queued take', async t => {
   const [chan] = initializeChannels();
   chan.take();
   const result = chan.drain();
-  t.is(result, null, 'should resolve to null');
+  t.deepEqual(result, [], 'should resolve to an empty array');
 });
 
 test('Channel#messages as async iterator', async t => {
