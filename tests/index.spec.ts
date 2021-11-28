@@ -255,6 +255,6 @@ test('Channel#takeWithCancel when canceling after put', async t => {
 
   t.is(await firstTake, msgA, 'should resolve to the first message');
   t.is(await secondTake, msgB, 'should resolve to the second message');
-  t.is(await thirdTake, msgC, 'should resolvto the third message');
+  t.is(await thirdTake, msgC, 'should resolve to the third message');
   t.false(wasCanceled, 'should return false if the `take` was not canceled in time');
 });
