@@ -213,7 +213,7 @@ export class Channel<T> {
     }
 
     const uniqueKey = Symbol('select-key');
-    return await Promise.race(
+    return await Promise.race<Promise<[T, K]>>(
       mapOverMap(channelMap, async (key, channel) => {
         const winningMessage = await channel._raceTake(uniqueKey, () => {
           // Cleanup function
@@ -221,7 +221,7 @@ export class Channel<T> {
             channel[TAKERS].delete(uniqueKey);
           })
         });
-        return [winningMessage, key];
+        return [winningMessage, key] as [T, K];
       })
     );
   };
