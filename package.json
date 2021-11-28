@@ -1,6 +1,6 @@
 {
   "name": "tiny-csp",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Feature-middleclass Promise-based CSP library based on Paybase CSP library",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
