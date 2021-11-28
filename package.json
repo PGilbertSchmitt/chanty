@@ -1,10 +1,10 @@
 {
-  "name": "ts-csp",
+  "name": "tiny-csp",
   "version": "0.0.1",
   "description": "Feature-middleclass Promise-based CSP library based on Paybase CSP library",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "repository": "git@github.com:PGilbertSchmitt/ts-csp.git",
+  "repository": "git@github.com:PGilbertSchmitt/tiny-csp.git",
   "author": "PGilbertSchmitt <pgilbertschmitt@gmail.com>",
   "license": "MIT",
   "private": false,
