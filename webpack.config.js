@@ -18,6 +18,9 @@ module.exports = {
   output: {
     filename: 'channel.js',
     path: path.resolve(__dirname, 'dist'),
-    library: 'chanty',
+    library: {
+      type: 'umd',
+      name: 'chanty'
+    },
   },
 };
