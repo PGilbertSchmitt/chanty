@@ -1,6 +1,6 @@
 {
   "name": "chanty",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Promise-based Communicating-Sequential-Processes library",
   "keywords": [
     "csp",
