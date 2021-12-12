@@ -1,5 +1,5 @@
 # tiny-csp
-A small, feature-packed, well tested CSP (Communication Sequential Processes) written in TypeScript, based originally [f5io's csp library](https://github.com/f5io/csp)
+A feature-packed, small, well tested CSP (Communication Sequential Processes) written in TypeScript, based originally on [f5io's csp library](https://github.com/f5io/csp)
 
 ## Motivation
 

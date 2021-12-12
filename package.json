@@ -1,9 +1,15 @@
 {
   "name": "tiny-csp",
-  "version": "1.0.0",
-  "description": "Feature-middleclass Promise-based CSP library based on Paybase CSP library",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "version": "0.0.0",
+  "description": "Promise-based Communicating-Sequential-Processes library",
+  "keywords": [
+    "csp",
+    "communicating-sequential-processes",
+    "async",
+    "typed"
+  ],
+  "main": "dist/channel.js",
+  "types": "dist/channel.d.ts",
   "repository": "git@github.com:PGilbertSchmitt/tiny-csp.git",
   "author": "PGilbertSchmitt <pgilbertschmitt@gmail.com>",
   "license": "MIT",
@@ -12,7 +18,10 @@
     "test": "ava ./tests/*.spec.ts",
     "coverage": "nyc --check-coverage --lines 100 --functions 100 --branches 100 npm test --tap",
     "audit": "text_audit -f colorList -r -g src/**/*.{js,ts} -t TODO DOCUMENT",
-    "perf-chart": "ts-node ./tests/perfChart.ts"
+    "perf-chart": "ts-node ./tests/perfChart.ts",
+    "build": "npm run build:lib && npm run build:types",
+    "build:lib": "webpack",
+    "build:types": "tsc --emitDeclarationOnly"
   },
   "devDependencies": {
     "@types/node": "^14.14.28",
@@ -21,13 +30,18 @@
     "@typescript-eslint/parser": "^4.15.1",
     "ava": "^3.15.0",
     "eslint": "^7.20.0",
+    "minify": "^8.0.3",
     "n": "^8.0.0",
     "nodeplotlib": "^0.7.6",
+    "np": "^7.6.0",
     "nyc": "^15.1.0",
     "ramda": "^0.27.1",
     "text_audit": "^0.9.3",
+    "ts-loader": "^9.2.6",
     "ts-node": "^9.1.1",
-    "typescript": "^4.4.4"
+    "typescript": "^4.4.4",
+    "webpack": "^5.64.4",
+    "webpack-cli": "^4.9.1"
   },
   "ava": {
     "extensions": [
