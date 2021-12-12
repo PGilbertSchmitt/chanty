@@ -20,7 +20,8 @@ module.exports = {
     path: path.resolve(__dirname, 'dist'),
     library: {
       type: 'umd',
-      name: 'chanty'
+      name: 'chanty',
     },
+    globalObject: 'this'
   },
 };
