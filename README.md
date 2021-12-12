@@ -1,4 +1,4 @@
-# tiny-csp
+# chanty
 A feature-packed, small, well tested CSP (Communication Sequential Processes) written in TypeScript, based originally on [f5io's csp library](https://github.com/f5io/csp)
 
 ## Motivation
@@ -14,12 +14,12 @@ There are already several CSP libraries out there. However, I've run into my own
 * No external dependencies
 * 100% test coverage
 
-I primarily care about the first three, the rest are just nice-to-haves. `tiny-csp` satisfies all of the above.
+I primarily care about the first three, the rest are just nice-to-haves. `chanty` satisfies all of the above.
 
 ## How to use:
 
 ```JS
-import { Channel } from 'tiny-csp';
+import { Channel } from 'chanty';
 
 const channel = new Channel();
 channel.put({

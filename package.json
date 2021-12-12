@@ -1,5 +1,5 @@
 {
-  "name": "tiny-csp",
+  "name": "chanty",
   "version": "0.0.0",
   "description": "Promise-based Communicating-Sequential-Processes library",
   "keywords": [
@@ -10,7 +10,7 @@
   ],
   "main": "dist/channel.js",
   "types": "dist/channel.d.ts",
-  "repository": "git@github.com:PGilbertSchmitt/tiny-csp.git",
+  "repository": "git@github.com:PGilbertSchmitt/chanty.git",
   "author": "PGilbertSchmitt <pgilbertschmitt@gmail.com>",
   "license": "MIT",
   "private": false,
