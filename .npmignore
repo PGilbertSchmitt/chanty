@@ -1,9 +1,0 @@
-.nyc_output/
-.vscode/
-node_modules/
-tests/
-src/
-.eslintrc.json
-npm-debug.log*
-tsconfig.json
-webpack.config.js
