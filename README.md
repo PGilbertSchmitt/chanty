@@ -18,6 +18,10 @@ I primarily care about the first three, the rest are just nice-to-haves. `chanty
 
 ## How to use:
 
+```Bash
+npm install chanty
+```
+
 ```JS
 import { Channel } from 'chanty';
 
